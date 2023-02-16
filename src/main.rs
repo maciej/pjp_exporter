@@ -9,7 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut registry = Registry::default();
     let metrics = metrics::Metrics::new(&mut registry);
 
-    let pjp_api = API::new(metrics.api_metrics.clone());
+    let pjp_api = API::new(metrics.api_metrics);
 
     let resp = pjp_api.find_all_stations().await?;
     println!("{:#?}", resp);
