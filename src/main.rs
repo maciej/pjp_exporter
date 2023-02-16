@@ -1,12 +1,20 @@
 mod pjp;
+mod metrics;
 
+use prometheus_client::registry::Registry;
+use crate::pjp::API;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let resp = pjp::find_all_stations().await?;
+    let mut registry = Registry::default();
+    let metrics = metrics::Metrics::new(&mut registry);
+
+    let pjp_api = API::new(metrics.api_metrics.clone());
+
+    let resp = pjp_api.find_all_stations().await?;
     println!("{:#?}", resp);
 
-    let resp = pjp::get_station_sensors(530).await?;
+    let resp = pjp_api.get_station_sensors(530).await?;
     println!("{:#?}", resp);
 
     Ok(())

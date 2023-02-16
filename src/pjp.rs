@@ -1,6 +1,8 @@
 use serde_aux::field_attributes::deserialize_number_from_string;
 use std::fmt::Debug;
+use std::time::Instant;
 use serde::{Deserialize, Serialize};
+use crate::metrics::APIMetrics;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -59,16 +61,39 @@ pub(crate) struct SensorParam {
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GetStationSensorsResp(Vec<Sensor>);
 
-pub(crate) async fn find_all_stations() -> reqwest::Result<FindAllStationsResp> {
-    reqwest::get("https://api.gios.gov.pl/pjp-api/rest/station/findAll")
-        .await?
-        .json::<FindAllStationsResp>()
-        .await
+pub(crate) struct API {
+    api_metrics: APIMetrics,
 }
 
-pub(crate) async fn get_station_sensors(station_id: u32) -> reqwest::Result<GetStationSensorsResp> {
-    reqwest::get(format!("https://api.gios.gov.pl/pjp-api/rest/station/sensors/{station_id}", station_id = station_id))
-        .await?
-        .json::<GetStationSensorsResp>()
-        .await
+impl API {
+    pub(crate) fn new(api_metrics: APIMetrics) -> Self {
+        API { api_metrics }
+    }
+
+    pub(crate) async fn find_all_stations(&self) -> reqwest::Result<FindAllStationsResp> {
+        let start = Instant::now();
+        let resp = reqwest::get("https://api.gios.gov.pl/pjp-api/rest/station/findAll")
+            .await?
+            .json::<FindAllStationsResp>()
+            .await;
+        let latency = start.elapsed();
+        self.api_metrics.latency_seconds.observe(latency.as_secs_f64());
+
+        resp
+    }
+
+    pub(crate) async fn get_station_sensors(&self, station_id: u32) -> reqwest::Result<GetStationSensorsResp> {
+        let start = Instant::now();
+        let resp = reqwest::get(format!("https://api.gios.gov.pl/pjp-api/rest/station/sensors/{station_id}", station_id = station_id))
+            .await?
+            .json::<GetStationSensorsResp>()
+            .await;
+
+        let latency = start.elapsed();
+        self.api_metrics.latency_seconds.observe(latency.as_secs_f64());
+
+        resp
+    }
 }
+
+
