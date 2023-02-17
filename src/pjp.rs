@@ -1,5 +1,6 @@
-use crate::metrics::{APILatencyLabels, APIMetrics};
+use crate::metrics::{APIErrorLabels, APILatencyLabels, APIMetrics};
 use chrono::{DateTime, Utc};
+use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use std::fmt::Debug;
@@ -107,32 +108,35 @@ mod data_timestamp_format {
         Ok(ldt.with_timezone(&Utc))
     }
 }
-
 pub(crate) struct API {
-    api_metrics: APIMetrics,
+    metrics: APIMetrics,
 }
 
 impl API {
     pub(crate) fn new(api_metrics: APIMetrics) -> Self {
-        API { api_metrics }
+        API {
+            metrics: api_metrics,
+        }
     }
 
     pub(crate) async fn find_all_stations(&self) -> reqwest::Result<FindAllStationsResp> {
         let endpoint = "/pjp-api/rest/station/findAll";
         let start = Instant::now();
-        let resp = reqwest::get("https://api.gios.gov.pl/pjp-api/rest/station/findAll")
-            .await?
-            .json::<FindAllStationsResp>()
-            .await;
+
+        let response = reqwest::get("https://api.gios.gov.pl/pjp-api/rest/station/findAll").await?;
+        let response = self.on_response(response, endpoint)?;
+
+        let result = response.json::<FindAllStationsResp>().await;
+
         let latency = start.elapsed();
-        self.api_metrics
+        self.metrics
             .latency_seconds
             .get_or_create(&APILatencyLabels {
                 endpoint: endpoint.to_owned(),
             })
             .observe(latency.as_secs_f64());
 
-        resp
+        result
     }
 
     pub(crate) async fn get_station_sensors(
@@ -141,45 +145,67 @@ impl API {
     ) -> reqwest::Result<GetStationSensorsResp> {
         let endpoint = "/pjp-api/rest/station/sensors/{station_id}";
         let start = Instant::now();
-        let resp = reqwest::get(format!(
+
+        let response = reqwest::get(format!(
             "https://api.gios.gov.pl/pjp-api/rest/station/sensors/{station_id}",
             station_id = station_id
         ))
-        .await?
-        .json::<GetStationSensorsResp>()
-        .await;
+        .await?;
+
+        let response = self.on_response(response, endpoint)?;
+
+        let result = response.json::<GetStationSensorsResp>().await;
 
         let latency = start.elapsed();
-        self.api_metrics
+        self.metrics
             .latency_seconds
             .get_or_create(&APILatencyLabels {
                 endpoint: endpoint.to_owned(),
             })
             .observe(latency.as_secs_f64());
 
-        resp
+        result
+    }
+
+    fn on_response(&self, res: Response, endpoint: &str) -> reqwest::Result<Response> {
+        match res.error_for_status() {
+            Ok(_res) => Ok(_res),
+            Err(err) => {
+                let status_code = err.status().unwrap().as_u16();
+
+                let labels = &APIErrorLabels {
+                    endpoint: endpoint.to_owned(),
+                    code: status_code,
+                };
+                self.metrics.errors.get_or_create(labels).inc();
+
+                Err(err)
+            }
+        }
     }
 
     pub(crate) async fn get_data(&self, sensor_id: u32) -> reqwest::Result<GetDataResp> {
         let endpoint = "/pjp-api/rest/data/getData/{sensor_id}";
         let start = Instant::now();
 
-        let resp = reqwest::get(format!(
+        let response = reqwest::get(format!(
             "https://api.gios.gov.pl/pjp-api/rest/data/getData/{sensor_id}",
             sensor_id = sensor_id
         ))
-        .await?
-        .json::<GetDataResp>()
-        .await;
+        .await?;
+
+        let response = self.on_response(response, endpoint)?;
+
+        let result = response.json::<GetDataResp>().await;
 
         let latency = start.elapsed();
-        self.api_metrics
+        self.metrics
             .latency_seconds
             .get_or_create(&APILatencyLabels {
                 endpoint: endpoint.to_owned(),
             })
             .observe(latency.as_secs_f64());
 
-        resp
+        result
     }
 }

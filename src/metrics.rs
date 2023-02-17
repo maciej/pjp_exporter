@@ -29,7 +29,7 @@ pub struct APIMetrics {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
 pub struct APIErrorLabels {
-    pub code: u32,
+    pub code: u16,
     pub endpoint: String,
 }
 
