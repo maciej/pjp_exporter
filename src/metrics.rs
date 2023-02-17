@@ -1,7 +1,9 @@
+use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::metrics::counter::Counter;
+use prometheus_client::metrics::family::Family;
+use prometheus_client::metrics::histogram;
 use prometheus_client::metrics::histogram::Histogram;
 use prometheus_client::registry::Registry;
-use prometheus_client::metrics::histogram;
 
 pub struct Metrics {
     // air_quality: AirQualityMetrics,
@@ -21,8 +23,19 @@ pub struct Metrics {
 
 #[derive(Clone)]
 pub struct APIMetrics {
-    pub errors: Counter<u64>,
-    pub latency_seconds: Histogram,
+    pub errors: Family<APIErrorLabels, Counter<u64>>,
+    pub latency_seconds: Family<APILatencyLabels, Histogram>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+pub struct APIErrorLabels {
+    pub code: u32,
+    pub endpoint: String,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+pub struct APILatencyLabels {
+    pub endpoint: String,
 }
 
 impl APIMetrics {
@@ -30,12 +43,13 @@ impl APIMetrics {
         let registry = registry.sub_registry_with_prefix("api");
 
         let metrics = APIMetrics {
-            errors: Counter::default(),
-            latency_seconds: Histogram::new(histogram::exponential_buckets(0.01, 2.0, 10)),
+            errors: Family::<APIErrorLabels, Counter>::default(),
+            latency_seconds: Family::<APILatencyLabels, Histogram>::new_with_constructor(|| {
+                Histogram::new(histogram::exponential_buckets(0.01, 2.0, 10))
+            }),
         };
 
-        registry.register("errors", "PJP API Errors",
-                          metrics.errors.clone());
+        registry.register("errors", "PJP API Errors", metrics.errors.clone());
 
         metrics
     }

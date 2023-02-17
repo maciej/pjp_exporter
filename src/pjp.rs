@@ -1,4 +1,4 @@
-use crate::metrics::APIMetrics;
+use crate::metrics::{APILatencyLabels, APIMetrics};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_aux::field_attributes::deserialize_number_from_string;
@@ -69,15 +69,15 @@ pub(crate) struct GetStationSensorsResp(Vec<Sensor>);
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GetDataResp {
     key: String,
-    values: Vec<DataValues>,
+    values: Vec<DataValue>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct DataValues {
+pub(crate) struct DataValue {
     // custom formats are described here https://serde.rs/custom-date-format.html
     #[serde(with = "data_timestamp_format")]
     date: DateTime<Utc>,
-    value: f64,
+    value: Option<f64>,
 }
 
 mod data_timestamp_format {
@@ -118,6 +118,7 @@ impl API {
     }
 
     pub(crate) async fn find_all_stations(&self) -> reqwest::Result<FindAllStationsResp> {
+        let endpoint = "/pjp-api/rest/station/findAll";
         let start = Instant::now();
         let resp = reqwest::get("https://api.gios.gov.pl/pjp-api/rest/station/findAll")
             .await?
@@ -126,6 +127,9 @@ impl API {
         let latency = start.elapsed();
         self.api_metrics
             .latency_seconds
+            .get_or_create(&APILatencyLabels {
+                endpoint: endpoint.to_owned(),
+            })
             .observe(latency.as_secs_f64());
 
         resp
@@ -135,6 +139,7 @@ impl API {
         &self,
         station_id: u32,
     ) -> reqwest::Result<GetStationSensorsResp> {
+        let endpoint = "/pjp-api/rest/station/sensors/{station_id}";
         let start = Instant::now();
         let resp = reqwest::get(format!(
             "https://api.gios.gov.pl/pjp-api/rest/station/sensors/{station_id}",
@@ -147,13 +152,18 @@ impl API {
         let latency = start.elapsed();
         self.api_metrics
             .latency_seconds
+            .get_or_create(&APILatencyLabels {
+                endpoint: endpoint.to_owned(),
+            })
             .observe(latency.as_secs_f64());
 
         resp
     }
 
     pub(crate) async fn get_data(&self, sensor_id: u32) -> reqwest::Result<GetDataResp> {
+        let endpoint = "/pjp-api/rest/data/getData/{sensor_id}";
         let start = Instant::now();
+
         let resp = reqwest::get(format!(
             "https://api.gios.gov.pl/pjp-api/rest/data/getData/{sensor_id}",
             sensor_id = sensor_id
@@ -165,6 +175,9 @@ impl API {
         let latency = start.elapsed();
         self.api_metrics
             .latency_seconds
+            .get_or_create(&APILatencyLabels {
+                endpoint: endpoint.to_owned(),
+            })
             .observe(latency.as_secs_f64());
 
         resp
