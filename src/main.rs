@@ -17,5 +17,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let resp = pjp_api.get_station_sensors(530).await?;
     println!("{:#?}", resp);
 
+    let resp = pjp_api.get_data(3585).await?;
+    println!("{:#?}", resp);
+
     Ok(())
 }
