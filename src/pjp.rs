@@ -46,26 +46,34 @@ pub(crate) struct FindAllStationsResp(Vec<Station>);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Sensor {
-    id: u32,
+    pub(crate) id: u32,
     #[serde(rename = "stationId")]
-    station_id: u32,
-    param: SensorParam,
+    pub(crate) station_id: u32,
+    pub(crate) param: SensorParam,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct SensorParam {
     #[serde(rename = "paramName")]
-    name: String,
+    pub(crate) name: String,
     #[serde(rename = "paramFormula")]
-    formula: String,
+    pub(crate) formula: String,
     #[serde(rename = "paramCode")]
-    code: String,
+    pub(crate) code: String,
     #[serde(rename = "idParam")]
-    id: u32,
+    pub(crate) id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GetStationSensorsResp(Vec<Sensor>);
+
+impl std::ops::Deref for GetStationSensorsResp {
+    type Target = Vec<Sensor>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GetDataResp {
@@ -108,6 +116,8 @@ mod data_timestamp_format {
         Ok(ldt.with_timezone(&Utc))
     }
 }
+
+#[derive(Clone)]
 pub(crate) struct API {
     metrics: APIMetrics,
 }
