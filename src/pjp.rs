@@ -108,6 +108,8 @@ mod data_timestamp_format {
         Ok(ldt.with_timezone(&Utc))
     }
 }
+
+#[derive(Clone)]
 pub(crate) struct API {
     metrics: APIMetrics,
 }
