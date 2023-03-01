@@ -1,10 +1,32 @@
 use crate::metrics::{APIErrorLabels, APILatencyLabels, APIMetrics};
+use crate::pjp::Param::{PM10, PM25};
 use chrono::{DateTime, Utc};
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use std::fmt::Debug;
+use std::str::FromStr;
 use std::time::Instant;
+
+#[derive(Debug)]
+pub(crate) enum Param {
+    PM25,
+    PM10,
+}
+
+impl FromStr for Param {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "PM2.5" {
+            Ok(PM25)
+        } else if s == "PM10" {
+            Ok(PM10)
+        } else {
+            Err(())
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Commune {
@@ -217,5 +239,10 @@ impl API {
             .observe(latency.as_secs_f64());
 
         result
+    }
+
+    pub(crate) async fn get_latest_data(&self, sensor_id: u32) -> reqwest::Result<DataValue> {
+        // TODO next
+        todo!()
     }
 }

@@ -1,6 +1,7 @@
 use crate::metrics::AirQualityMetrics;
 use crate::pjp;
 use crate::pjp::GetStationSensorsResp;
+use std::str::FromStr;
 use std::sync::Arc;
 
 pub enum ScrapeError {
@@ -38,22 +39,23 @@ impl Scraper {
         // First get station sensors
         let sensors: GetStationSensorsResp = self.api.get_station_sensors(station_id).await?;
 
-        let _known_sensors: Vec<u32> = sensors
+        let known_sensors: Vec<(pjp::Param, u32)> = sensors
             .iter()
-            .filter(|s| s.param.code == "PM2.5" || s.param.code == "PM10")
-            .map(|s| s.id)
+            .filter(|s| pjp::Param::from_str(&s.param.code).is_ok())
+            .map(|s| (pjp::Param::from_str(&s.param.code).unwrap(), s.id))
             .collect();
 
         let mut set = tokio::task::JoinSet::new();
 
-        for s in _known_sensors {
+        for s in known_sensors {
             let api = self.api.clone();
-            set.spawn(async move { api.get_data(s).await });
+            set.spawn(async move { (s.0, api.get_data(s.1).await) });
         }
 
         while let Some(r) = set.join_next().await {
-            let out = r??;
-            println!("{:#?}", out);
+            let out = r?;
+            let data = out.1?;
+            println!("{:#?}, {:#?}", out.0, data);
         }
 
         Ok(())
