@@ -103,7 +103,7 @@ pub(crate) struct GetDataResp {
     values: Vec<DataValue>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct DataValue {
     // custom formats are described here https://serde.rs/custom-date-format.html
     #[serde(with = "data_timestamp_format")]
@@ -241,8 +241,23 @@ impl API {
         result
     }
 
-    pub(crate) async fn get_latest_data(&self, sensor_id: u32) -> reqwest::Result<DataValue> {
-        // TODO next
-        todo!()
+    pub(crate) async fn get_latest_data(
+        &self,
+        sensor_id: u32,
+    ) -> reqwest::Result<Option<DataValue>> {
+        let data = self.get_data(sensor_id).await?;
+
+        Ok(data
+            .values
+            .iter()
+            .reduce(|acc, e| {
+                // println!("{:#?}", e);
+                if acc.value.is_none() || (e.date > acc.date && e.value.is_some()) {
+                    e
+                } else {
+                    acc
+                }
+            })
+            .map(|v| v.clone()))
     }
 }

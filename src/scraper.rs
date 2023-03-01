@@ -49,7 +49,7 @@ impl Scraper {
 
         for s in known_sensors {
             let api = self.api.clone();
-            set.spawn(async move { (s.0, api.get_data(s.1).await) });
+            set.spawn(async move { (s.0, api.get_latest_data(s.1).await) });
         }
 
         while let Some(r) = set.join_next().await {
