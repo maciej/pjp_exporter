@@ -107,8 +107,8 @@ pub(crate) struct GetDataResp {
 pub(crate) struct DataValue {
     // custom formats are described here https://serde.rs/custom-date-format.html
     #[serde(with = "data_timestamp_format")]
-    date: DateTime<Utc>,
-    value: Option<f64>,
+    pub(crate) date: DateTime<Utc>,
+    pub(crate) value: Option<f64>,
 }
 
 mod data_timestamp_format {
@@ -251,7 +251,6 @@ impl API {
             .values
             .iter()
             .reduce(|acc, e| {
-                // println!("{:#?}", e);
                 if acc.value.is_none() || (e.date > acc.date && e.value.is_some()) {
                     e
                 } else {

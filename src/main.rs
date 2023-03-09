@@ -17,6 +17,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _ = scraper.scrape_station(530).await;
 
+    // TODO start http server here exposing metrics
+
     // let resp = pjp_api.find_all_stations().await?;
     // println!("{:#?}", resp);
     //

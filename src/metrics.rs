@@ -5,6 +5,7 @@ use prometheus_client::metrics::gauge::Gauge;
 use prometheus_client::metrics::histogram;
 use prometheus_client::metrics::histogram::Histogram;
 use prometheus_client::registry::Registry;
+use std::sync::atomic::AtomicU64;
 
 pub struct Metrics {
     pub air_quality: AirQualityMetrics,
@@ -12,8 +13,8 @@ pub struct Metrics {
 }
 
 pub struct AirQualityMetrics {
-    pub pm25: Gauge,
-    pub pm10: Gauge,
+    pub pm25: Family<AirQualityLabels, Gauge<f64, AtomicU64>>,
+    pub pm10: Family<AirQualityLabels, Gauge<f64, AtomicU64>>,
 }
 
 impl AirQualityMetrics {
@@ -21,8 +22,8 @@ impl AirQualityMetrics {
         let _registry = registry.sub_registry_with_prefix("air_quality");
 
         let metrics = AirQualityMetrics {
-            pm25: Gauge::default(),
-            pm10: Gauge::default(),
+            pm10: Family::<AirQualityLabels, Gauge<f64, AtomicU64>>::default(),
+            pm25: Family::<AirQualityLabels, Gauge<f64, AtomicU64>>::default(),
         };
 
         metrics
@@ -39,6 +40,12 @@ pub struct APIMetrics {
 pub struct APIErrorLabels {
     pub code: u16,
     pub endpoint: String,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+pub struct AirQualityLabels {
+    pub station: u32,
+    pub sensor: u32,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
