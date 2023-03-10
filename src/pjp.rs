@@ -151,6 +151,7 @@ impl API {
         }
     }
 
+    #[allow(dead_code)] // to be used later
     pub(crate) async fn find_all_stations(&self) -> reqwest::Result<FindAllStationsResp> {
         let endpoint = "/pjp-api/rest/station/findAll";
         let start = Instant::now();
