@@ -19,12 +19,15 @@ pub struct AirQualityMetrics {
 
 impl AirQualityMetrics {
     fn new(registry: &mut Registry) -> Self {
-        let _registry = registry.sub_registry_with_prefix("air_quality");
+        let registry = registry.sub_registry_with_prefix("air_quality");
 
         let metrics = AirQualityMetrics {
             pm10: Family::<AirQualityLabels, Gauge<f64, AtomicU64>>::default(),
             pm25: Family::<AirQualityLabels, Gauge<f64, AtomicU64>>::default(),
         };
+
+        registry.register("pm10", "PM10 pollution", metrics.pm10.clone());
+        registry.register("pm25", "PM2.5 pollution", metrics.pm25.clone());
 
         metrics
     }
@@ -65,6 +68,11 @@ impl APIMetrics {
         };
 
         registry.register("errors", "PJP API Errors", metrics.errors.clone());
+        registry.register(
+            "latency_seconds",
+            "PJP Latency",
+            metrics.latency_seconds.clone(),
+        );
 
         metrics
     }
