@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicU64;
 
 pub struct Metrics {
     pub air_quality: AirQualityMetrics,
-    pub api_metrics: APIMetrics,
+    pub api_metrics: ApiMetrics,
 }
 
 pub struct AirQualityMetrics {
@@ -34,13 +34,14 @@ impl AirQualityMetrics {
 }
 
 #[derive(Clone)]
-pub struct APIMetrics {
-    pub errors: Family<APIErrorLabels, Counter<u64>>,
-    pub latency_seconds: Family<APILatencyLabels, Histogram>,
+pub struct ApiMetrics {
+    pub errors: Family<ApiErrorLabels, Counter<u64>>,
+    pub latency_seconds: Family<ApiLabels, Histogram>,
+    pub requests: Family<ApiLabels, Counter<u64>>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
-pub struct APIErrorLabels {
+pub struct ApiErrorLabels {
     pub code: u16,
     pub endpoint: String,
 }
@@ -48,23 +49,25 @@ pub struct APIErrorLabels {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
 pub struct AirQualityLabels {
     pub station: u32,
+    pub station_name: String,
     pub sensor: u32,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
-pub struct APILatencyLabels {
+pub struct ApiLabels {
     pub endpoint: String,
 }
 
-impl APIMetrics {
+impl ApiMetrics {
     fn new(registry: &mut Registry) -> Self {
         let registry = registry.sub_registry_with_prefix("api");
 
-        let metrics = APIMetrics {
-            errors: Family::<APIErrorLabels, Counter>::default(),
-            latency_seconds: Family::<APILatencyLabels, Histogram>::new_with_constructor(|| {
+        let metrics = ApiMetrics {
+            errors: Family::<ApiErrorLabels, Counter>::default(),
+            latency_seconds: Family::<ApiLabels, Histogram>::new_with_constructor(|| {
                 Histogram::new(histogram::exponential_buckets(0.01, 2.0, 10))
             }),
+            requests: Family::<ApiLabels, Counter>::default(),
         };
 
         registry.register("errors", "PJP API Errors", metrics.errors.clone());
@@ -83,7 +86,7 @@ impl Metrics {
     pub fn new(registry: &mut Registry) -> Self {
         Metrics {
             air_quality: AirQualityMetrics::new(registry),
-            api_metrics: APIMetrics::new(registry),
+            api_metrics: ApiMetrics::new(registry),
         }
     }
 }

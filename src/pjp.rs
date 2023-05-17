@@ -1,4 +1,4 @@
-use crate::metrics::{APIErrorLabels, APILatencyLabels, APIMetrics};
+use crate::metrics::{ApiErrorLabels, ApiLabels, ApiMetrics};
 use crate::pjp::Param::{PM10, PM25};
 use chrono::{DateTime, Utc};
 use reqwest::Response;
@@ -116,7 +116,7 @@ mod data_timestamp_format {
     use chrono_tz::Europe::Warsaw;
     use serde::{self, Deserialize, Deserializer, Serializer};
 
-    const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+    const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
     pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -140,13 +140,13 @@ mod data_timestamp_format {
 }
 
 #[derive(Clone)]
-pub(crate) struct API {
-    metrics: APIMetrics,
+pub(crate) struct Api {
+    metrics: ApiMetrics,
 }
 
-impl API {
-    pub(crate) fn new(api_metrics: APIMetrics) -> Self {
-        API {
+impl Api {
+    pub(crate) fn new(api_metrics: ApiMetrics) -> Self {
+        Api {
             metrics: api_metrics,
         }
     }
@@ -162,12 +162,14 @@ impl API {
         let result = response.json::<FindAllStationsResp>().await;
 
         let latency = start.elapsed();
+        let labels = ApiLabels {
+            endpoint: endpoint.to_owned(),
+        };
         self.metrics
             .latency_seconds
-            .get_or_create(&APILatencyLabels {
-                endpoint: endpoint.to_owned(),
-            })
+            .get_or_create(&labels)
             .observe(latency.as_secs_f64());
+        self.metrics.requests.get_or_create(&labels).inc();
 
         result
     }
@@ -192,7 +194,7 @@ impl API {
         let latency = start.elapsed();
         self.metrics
             .latency_seconds
-            .get_or_create(&APILatencyLabels {
+            .get_or_create(&ApiLabels {
                 endpoint: endpoint.to_owned(),
             })
             .observe(latency.as_secs_f64());
@@ -206,7 +208,7 @@ impl API {
             Err(err) => {
                 let status_code = err.status().unwrap().as_u16();
 
-                let labels = &APIErrorLabels {
+                let labels = &ApiErrorLabels {
                     endpoint: endpoint.to_owned(),
                     code: status_code,
                 };
@@ -232,12 +234,14 @@ impl API {
         let result = response.json::<GetDataResp>().await;
 
         let latency = start.elapsed();
+        let labels = ApiLabels {
+            endpoint: endpoint.to_owned(),
+        };
         self.metrics
             .latency_seconds
-            .get_or_create(&APILatencyLabels {
-                endpoint: endpoint.to_owned(),
-            })
+            .get_or_create(&labels)
             .observe(latency.as_secs_f64());
+        self.metrics.requests.get_or_create(&labels).inc();
 
         result
     }
@@ -258,6 +262,6 @@ impl API {
                     acc
                 }
             })
-            .map(|v| v.clone()))
+            .cloned())
     }
 }
